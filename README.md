@@ -14,7 +14,7 @@ This server acts as a bridge between MCP-compliant AI assistants (like OpenCode,
 
 ---
 
-## 1. Quick Start (Using the Public Edge Proxy)
+## Quick Start (Using the Public Edge Proxy)
 
 The easiest way to use this MCP server is to connect to the public instance hosted on Cloudflare's global edge network. Because the proxy is completely stateless, your API keys and store data remain secure—they are only passed through to the IdoSell API.
 
@@ -46,7 +46,7 @@ Add this to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "idosell": {
-      "type": "sse",
+      "type": "remote",
       "url": "https://api.idosell-mcp-server.workers.dev/message",
       "headers": {
         "X-Idosell-Domain": "your_shop_domain",
@@ -65,7 +65,7 @@ Add this to your `~/.continue/config.json`:
   "mcpServers": [
     {
       "name": "idosell",
-      "type": "sse",
+      "type": "remote",
       "url": "https://api.idosell-mcp-server.workers.dev/message",
       "headers": {
         "X-Idosell-Domain": "your_shop_domain",
@@ -79,7 +79,7 @@ Add this to your `~/.continue/config.json`:
 ### Cursor IDE Configuration
 Configure this directly in Cursor's settings UI (**Settings -> Features -> MCP Servers**):
 * **Name:** `idosell`
-* **Type:** `sse`
+* **Type:** `remote` (or Custom)
 * **URL:** `https://api.idosell-mcp-server.workers.dev/message`
 * **Headers:** 
   * `X-Idosell-Domain`: `your_shop_domain`
@@ -87,7 +87,9 @@ Configure this directly in Cursor's settings UI (**Settings -> Features -> MCP S
 
 ---
 
-## 2. Deploy Your Own Cloudflare Worker (Optional)
+## Alternative Hosting Methods (Advanced)
+
+### Deploy Your Own Cloudflare Worker
 
 If you prefer to host the remote proxy yourself, this server is pre-configured to be deployed to your own Cloudflare account.
 
@@ -97,13 +99,11 @@ npx wrangler deploy
 ```
 *Wrangler will provide your own URL like `https://api.<your-username>.workers.dev`. Swap the public URL with yours in the configuration.*
 
----
+### Running Locally (`stdio`)
 
-## 3. Running Locally (`stdio`)
+If you prefer to run the server entirely locally on your own machine (without HTTP/remote transport), you can build and run it directly.
 
-If you prefer to run the server entirely locally on your own machine (without HTTP/SSE transport), you can build and run it directly.
-
-### Installation & Build
+#### Installation & Build
 ```bash
 npm install
 npm run build
@@ -115,7 +115,7 @@ IDOSELL_DOMAIN=your_shop_domain
 IDOSELL_API_KEY=your_api_key
 ```
 
-### OpenCode Configuration (Local)
+#### OpenCode Configuration (Local)
 Configure your client to point to the compiled `index.js` file using `stdio`.
 
 ```json
