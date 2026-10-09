@@ -1,8 +1,10 @@
 import express, { Request, Response } from 'express';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, type Tool, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, isInitializeRequest, type Tool, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import { 
     SERVER_NAME, 
@@ -47,37 +49,86 @@ server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToo
 });
 
 const app = express();
+app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
-let sseTransport: SSEServerTransport | null = null;
+interface Session {
+  transport: SSEServerTransport | StreamableHTTPServerTransport;
+}
+
+const sessions = new Map<string, Session>();
 
 app.get('/sse', async (req: Request, res: Response) => {
   console.error('Client established SSE connection');
-  sseTransport = new SSEServerTransport('/message', res);
-  await server.connect(sseTransport);
+  const transport = new SSEServerTransport('/message', res);
+  
+  sessions.set(transport.sessionId, { transport });
 
-  req.on('close', () => {
+  transport.onclose = () => {
+    sessions.delete(transport.sessionId);
     console.error('SSE connection closed');
-    sseTransport = null;
-  });
+  };
+
+  await server.connect(transport);
 });
 
-app.post('/message', async (req: Request, res: Response) => {
-  if (!sseTransport) {
-    res.status(400).send('SSE connection not active');
-    return;
-  }
-
-  // Extract store domain & key from incoming client HTTP headers
+app.all('/message', async (req: Request, res: Response) => {
   const domain = req.headers['x-idosell-domain'] as string | undefined;
   const apiKey = req.headers['x-idosell-api-key'] as string | undefined;
 
-  // Run MCP request handler isolated within this client's context
   await requestContext.run({ domain, apiKey }, async () => {
-    await sseTransport!.handlePostMessage(req, res);
+    let sessionId = req.query.sessionId as string | undefined;
+    if (!sessionId) {
+      sessionId = req.headers['mcp-session-id'] as string | undefined;
+    }
+
+    let transport: SSEServerTransport | StreamableHTTPServerTransport | undefined;
+
+    if (sessionId) {
+      transport = sessions.get(sessionId)?.transport;
+    } else if (req.method === 'POST' && isInitializeRequest(req.body)) {
+      const newTransport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (id) => {
+          sessions.set(id, { transport: newTransport });
+        }
+      });
+      newTransport.onclose = () => {
+        if (newTransport.sessionId) {
+          sessions.delete(newTransport.sessionId);
+          console.error('Streamable HTTP connection closed');
+        }
+      };
+      transport = newTransport;
+      await server.connect(newTransport);
+      console.error('Client established Streamable HTTP connection');
+    } else if (sessions.size === 1 && !sessionId) {
+      transport = Array.from(sessions.values())[0].transport;
+    }
+
+    if (!transport) {
+      res.status(400).send('No active session or valid session ID provided');
+      return;
+    }
+
+    try {
+      if (transport instanceof SSEServerTransport) {
+        if (req.method === 'POST') {
+          await transport.handlePostMessage(req, res, req.body);
+        } else {
+          res.status(405).send('Method Not Allowed for SSE transport');
+        }
+      } else if (transport instanceof StreamableHTTPServerTransport) {
+        await transport.handleRequest(req, res, req.body);
+      }
+    } catch (e) {
+      console.error('Error handling message:', e);
+    }
   });
 });
 
 app.listen(PORT, () => {
   console.error(`Remote ${SERVER_NAME} MCP Server listening on port ${PORT}`);
+  console.error(`- Streamable HTTP endpoint: /message (GET/POST)`);
+  console.error(`- SSE endpoint (deprecated): /sse (GET) -> /message (POST)`);
 });
