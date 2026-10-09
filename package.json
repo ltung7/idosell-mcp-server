@@ -1,0 +1,42 @@
+{
+  "name": "idosell-mcp-server",
+  "version": "8.12.0",
+  "description": "MCP Server generated for IdoSell Admin API (v8.12)",
+  "private": true,
+  "type": "module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "bin": {
+    "idosell-mcp": "build/index.js"
+  },
+  "files": [
+    "build",
+    "src"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc && shx chmod 755 build/index.js",
+    "typecheck": "tsc --noEmit",
+    "prestart": "npm run build",
+    "start": "node build/index.js",
+    "start:local": "node build/index.js",
+    "start:remote": "node build/server.js",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.0",
+    "axios": "^1.9.0",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "json-schema-to-zod": "^2.6.1",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.15.2",
+    "shx": "^0.4.0",
+    "typescript": "^5.8.3"
+  }
+}
