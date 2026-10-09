@@ -7,29 +7,20 @@ This server acts as a bridge between MCP-compliant AI assistants (like OpenCode,
 ## Features
 
 * **Universal Compatibility:** Works with any MCP-capable client out of the box.
-* **Edge Optimized (Cloudflare Workers):** Extremely fast, zero-cold-start hosting on Cloudflare Workers using the official Streamable HTTP transport.
-* **Stateless Proxy Architecture:** When running remotely on the edge, store credentials are never hardcoded or saved on the cloud server. They are passed securely via headers per request.
+* **Ready to Use:** A globally distributed, extremely fast, zero-cold-start public instance is hosted on Cloudflare's Edge and ready to be plugged into your AI assistant immediately.
+* **Stateless Proxy Architecture:** Store credentials are never hardcoded or saved on the cloud server. They are passed securely via headers per request, making the public proxy 100% safe to use.
 * **Prompt Overrides:** Tell the AI to switch domains or API keys dynamically during a conversation (e.g., *"Fetch product 102 using domain staging.shop.com"*).
-* **Gemini & OpenAPI Compliant:** Includes strict JSON schema validation required by Gemini-based function calling (used by OpenCode and others), bypassing V8 `eval()` restrictions on Cloudflare by leveraging `ajv` inside the worker context.
+* **Gemini & OpenAPI Compliant:** Includes strict JSON schema validation required by Gemini-based function calling (used by OpenCode and others).
 
 ---
 
-## 1. Hosting on Cloudflare Workers (Remote)
+## 1. Quick Start (Using the Public Edge Proxy)
 
-This server is pre-configured to run on **Cloudflare Workers** utilizing the standard MCP Streamable HTTP transport. This gives you a globally distributed, free, and incredibly fast proxy for your AI assistants.
+The easiest way to use this MCP server is to connect to the public instance hosted on Cloudflare's global edge network. Because the proxy is completely stateless, your API keys and store data remain secure—they are only passed through to the IdoSell API.
 
-### Deployment
-To deploy your own instance to Cloudflare:
-```bash
-npm install
-npx wrangler deploy
-```
-*Wrangler will provide a URL like `https://api.<your-username>.workers.dev`.*
+Configure your AI client to point to `https://api.idosell-mcp-server.workers.dev/message` and provide your credentials via HTTP headers.
 
-### Client Configuration
-Point your AI client to your new Cloudflare URL (appending `/message` to the end). Pass your credentials securely using custom HTTP headers.
-
-#### OpenCode Configuration
+### OpenCode Configuration
 Add this to your `opencode.jsonc`:
 
 ```json
@@ -37,7 +28,7 @@ Add this to your `opencode.jsonc`:
   "mcp": {
     "idosell": {
       "type": "remote",
-      "url": "https://api.<your-username>.workers.dev/message",
+      "url": "https://api.idosell-mcp-server.workers.dev/message",
       "headers": {
         "X-Idosell-Domain": "your_shop_domain",
         "X-Idosell-Api-Key": "your_api_key"
@@ -48,7 +39,7 @@ Add this to your `opencode.jsonc`:
 ```
 *(Tip: You can use `${env:IDOSELL_DOMAIN}` in your `opencode.jsonc` headers to dynamically inject secrets from your local machine's OS environment).*
 
-#### Claude Desktop Configuration
+### Claude Desktop Configuration
 Add this to your `claude_desktop_config.json`:
 
 ```json
@@ -56,7 +47,7 @@ Add this to your `claude_desktop_config.json`:
   "mcpServers": {
     "idosell": {
       "type": "sse",
-      "url": "https://api.<your-username>.workers.dev/message",
+      "url": "https://api.idosell-mcp-server.workers.dev/message",
       "headers": {
         "X-Idosell-Domain": "your_shop_domain",
         "X-Idosell-Api-Key": "your_api_key"
@@ -66,7 +57,7 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
-#### Continue.dev Configuration
+### Continue.dev Configuration
 Add this to your `~/.continue/config.json`:
 
 ```json
@@ -75,7 +66,7 @@ Add this to your `~/.continue/config.json`:
     {
       "name": "idosell",
       "type": "sse",
-      "url": "https://api.<your-username>.workers.dev/message",
+      "url": "https://api.idosell-mcp-server.workers.dev/message",
       "headers": {
         "X-Idosell-Domain": "your_shop_domain",
         "X-Idosell-Api-Key": "your_api_key"
@@ -85,20 +76,32 @@ Add this to your `~/.continue/config.json`:
 }
 ```
 
-#### Cursor IDE Configuration
+### Cursor IDE Configuration
 Configure this directly in Cursor's settings UI (**Settings -> Features -> MCP Servers**):
 * **Name:** `idosell`
 * **Type:** `sse`
-* **URL:** `https://api.<your-username>.workers.dev/message`
+* **URL:** `https://api.idosell-mcp-server.workers.dev/message`
 * **Headers:** 
   * `X-Idosell-Domain`: `your_shop_domain`
   * `X-Idosell-Api-Key`: `your_api_key`
 
 ---
 
-## 2. Running Locally (`stdio`)
+## 2. Deploy Your Own Cloudflare Worker (Optional)
 
-If you prefer to run the server locally on your own machine instead of the cloud, you will need to install its dependencies and compile the TypeScript code.
+If you prefer to host the remote proxy yourself, this server is pre-configured to be deployed to your own Cloudflare account.
+
+```bash
+npm install
+npx wrangler deploy
+```
+*Wrangler will provide your own URL like `https://api.<your-username>.workers.dev`. Swap the public URL with yours in the configuration.*
+
+---
+
+## 3. Running Locally (`stdio`)
+
+If you prefer to run the server entirely locally on your own machine (without HTTP/SSE transport), you can build and run it directly.
 
 ### Installation & Build
 ```bash
@@ -113,7 +116,7 @@ IDOSELL_API_KEY=your_api_key
 ```
 
 ### OpenCode Configuration (Local)
-Configure your client to point to the compiled `index.js` file.
+Configure your client to point to the compiled `index.js` file using `stdio`.
 
 ```json
 {
